@@ -1,0 +1,5 @@
+"0","numident_with_covariates <- fread(here(""data/numident_dataset_with_covariates.csv"")) %>% "
+"0","  filter(year_cycle_first > 1983) %>% "
+"0","  filter(byear %in% c(1901:1927)) %>% "
+"0","  filter(race_last_cyear %in% c(1984:2007)) %>% "
+"0","  mutate(time_between_apps = year_cycle_last - year_cycle_first)"

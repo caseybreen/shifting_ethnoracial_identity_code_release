@@ -1,0 +1,152 @@
+---
+title: "Social Status Indicators — shifts from 1940 Census"
+---
+
+Summary: Analysis of 1940 race. 
+
+The broadest limitation is that false matches will introduce all sorts of bias into this analysis. Basically, false matches will overstate the rate of racial fluidity and systematically downwardly bias OLS regression estimates. 
+
+```{r}
+## library packages
+library(tidyverse)
+library(data.table)
+library(stargazer)
+library(broom)
+library(ggsci)
+library(cowplot)
+library(here)
+```
+
+```{r}
+## analysis with covariates 
+analysis_dataset_with_covariates <- fread(here("data/numident_dataset_with_covariates.csv"))
+
+analysis_dataset_with_covariates_conservative <- analysis_dataset_with_covariates %>% 
+  filter(link_abe_exact_conservative == 1)
+
+matched_data <- analysis_dataset_with_covariates_conservative %>% 
+  filter(year_cycle_first > 1983) %>% 
+  filter(byear %in% c(1901:1927)) %>% 
+  mutate(time_between_apps = year_cycle_last - year_cycle_first)
+```
+
+
+```{r}
+matched_data <- matched_data %>% 
+ mutate(census_race = case_when(
+   RACE == 100 ~ 1,
+   RACE == 200 ~ 2
+ )) %>% 
+  filter(race_first %in% c(1:2))  %>% 
+  filter(census_race %in% c(1:2))
+
+matched_data_subset <- matched_data %>% 
+  mutate(race_first_string = case_when(
+    race_first == 1 ~ "White",
+    race_first == 2 ~ "Black"
+  ),
+  race_last_string = case_when(
+    census_race == 1 ~ "White",
+    census_race == 2 ~ "Black"
+  ))
+
+transition_matrix <- matched_data_subset %>%
+  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
+  group_by(race_first_string, race_last_string) %>%
+  summarize(n = n()) %>% 
+  mutate(freq = n / sum(n)) %>% 
+  mutate(freq_categorical = cut(freq, c(0, .5, .9, 1))) %>% 
+  mutate(freq_label = paste0(round(100*freq,1), "%")) %>% 
+  ggplot(aes(x = race_last_string, y = race_first_string, fill = freq_categorical)) + 
+    geom_tile() +
+  geom_text(aes(color = freq < 0.5, label = freq_label), size= 8) +
+scale_color_manual(guide = FALSE, values = c("black", "white")) +
+    #facet_grid(ego_sex ~ alter_sex) +
+    coord_equal()  + 
+    viridis::scale_fill_viridis(name=str_wrap("Frequency", width=10), alpha = 1, na.value="grey", discrete = T) +
+  #theme_minimal() +
+  theme_minimal(base_size = 20) +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size=22)) + 
+  labs(title = "",
+         x = "Last Ethnoracial Category",
+      y = "First Ethnoracial Category") + 
+  theme(legend.position = "none")
+
+ggsave(plot = transition_matrix, filename = here("figures/transition_matrix_1940.png"), width = 6, height = 6)
+```
+
+
+```{r}
+matched_data_subset <- matched_data_subset %>% 
+  mutate(change_to_white = case_when(
+    census_race != 1 & race_first == 1 ~ 1,
+    TRUE ~ 0
+  )) %>% 
+     mutate(change_from_white = case_when(
+    census_race == 1 &  race_first != 1 ~ 1,
+    TRUE ~ 0
+  )) 
+
+## run education models 
+education_coefficients <- matched_data_subset %>%
+  mutate(race = case_when(
+    census_race == 1  ~ "White",
+    census_race == 2  ~ "Black",
+  )) %>% 
+  filter(race %in% c("Black")) %>% 
+  filter(byear %in% 1901:1927) %>% 
+  filter(AGE >= 18) %>% 
+  group_by(race) %>%
+  do(tidy(glm(change_to_white ~ educ.yrs + sex + as.factor(byear), family = "binomial", data = .))) %>% 
+  filter(term %in% c("educ.yrs")) %>% 
+  mutate(estimate_odds = exp(estimate),
+         low = exp(estimate - 1.96*std.error),
+         upper = exp(estimate + 1.96*std.error))
+
+## education coefficients 
+education_coefficients %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = race, y = estimate_odds, ymin = low, ymax = upper)) + 
+  theme_minimal(20) + 
+  geom_hline(yintercept = 1, linetype = "dashed") + 
+  coord_flip()
+
+## income coefficients 
+income_coefficients <- matched_data_subset %>%
+  mutate(income.wage.dollars = INCWAGE/1000) %>% 
+  mutate(race = case_when(
+    census_race == 1  ~ "White",
+    census_race == 2  ~ "Black",
+  )) %>% 
+  filter(race %in% c("Black")) %>% 
+  filter(byear %in% 1901:1927) %>% 
+  filter(AGE >= 18) %>% 
+  filter(INCWAGE > 0 & INCWAGE < 5002) %>% 
+  group_by(race) %>%
+  do(tidy(glm(change_to_white ~ income.wage.dollars + sex + as.factor(byear), family = "binomial", data = .))) %>% 
+  filter(term %in% c("income.wage.dollars")) %>% 
+  mutate(estimate_odds = exp(estimate),
+         low = exp(estimate - 1.96*std.error),
+         upper = exp(estimate + 1.96*std.error)) 
+
+## income model bind rows 
+odds_ratios <- bind_rows(education_coefficients, income_coefficients) %>% 
+  mutate(term = case_when(
+    term == "educ.yrs" ~ "Education",
+    term == "income.wage.dollars" ~ "Wage Income"
+  )) %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = race, y = estimate_odds, ymin = low, ymax = upper)) + 
+  theme_cowplot(18) + 
+  background_grid() + 
+  geom_hline(yintercept = 1, linetype = "dashed") + 
+  coord_flip() + 
+  facet_wrap(~term, scales = "free", nrow = 1)+ 
+  labs(y = "Odds Ratio",
+       x = "Initial Ethnoracial Category"
+  )
+
+ggsave(plot = odds_ratios, filename = here("figures/odds_ratio_1940.png"), height = 6, width = 13)
+```

@@ -1,0 +1,186 @@
+---
+title: "Racial Fluidity Analysis"
+---
+
+Summary: This notebook contains code 
+
+
+
+```{r}
+## library packages 
+library(data.table)
+library(tidyverse)
+library(ggsci)
+library(scales)
+library(ggrepel)
+library(here)
+```
+
+## recode and restrict to sample 
+
+Sample restricted to those born between 1901 and 1927, dying after 1983, who filled out two or more Social Security applications 
+
+```{r}
+## Numident sample — those born between 1901 and 1927, dying between 1988 and 2005, who filled out two or more Social Security applications 
+numident_sample  <- fread(here("data/numident_dataset.csv")) %>% 
+  filter(year_cycle_first > 1983) %>% 
+  filter(byear %in% c(1901:1927)) %>% 
+  filter(race_last_cyear %in% c(1984:2007)) %>% 
+  mutate(race_first_string = case_when(
+    race_first == 1  ~ "White",
+    race_first == 2  ~ "Black",
+    race_first == 4  ~ "Asian",
+    race_first == 5  ~ "Hispanic",
+    race_first == 6  ~ "American Indian")) %>% 
+  mutate(race_last_string = case_when(
+    race_last == 1  ~ "White",
+    race_last == 2  ~ "Black",
+    race_last == 4  ~ "Asian",
+    race_last == 5  ~ "Hispanic",
+    race_last == 6  ~ "American Indian")) %>% 
+  filter(!is.na(race_first_string) & !is.na(race_last_string))
+
+## overal proportion of sample who changed identity 
+numident_sample %>% 
+  summarize(changed_ethnoracial_identity = mean(race_first != race_last))
+```
+
+## construct transisiton matrices 
+
+```{r}
+## Construct a transition matrix 
+transition_matrix <- numident_sample %>%
+  # filter(bpl < 15000) %>% 
+  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
+  group_by(race_first_string, race_last_string) %>%
+  summarize(n = n(),.groups = 'drop') %>% 
+  mutate(freq = n / sum(n)) %>% 
+  mutate(freq_categorical =
+             cut(freq,
+                 c(0, 0.005, .01, .05, .1, .8, .9, 1), 
+                 labels = c("Low",
+                              " ", 
+                             "   ",
+                             "     ",
+                             "       ",
+                             "          ",
+                             "High"),
+                 include.lowest = FALSE)) %>% 
+  mutate(freq_label = paste0(round(100*freq,1), "%")) %>% 
+  ggplot(aes(x = race_last_string, y = race_first_string, fill = freq_categorical)) + 
+    geom_tile() +
+  geom_text(aes(color = freq < 0.5, label = freq_label), size= 8) +
+scale_color_manual(guide = FALSE, values = c("black", "white")) +
+    #facet_grid(ego_sex ~ alter_sex) +
+    coord_equal()  + 
+    viridis::scale_fill_viridis(name=str_wrap("Frequency", width=10), alpha = 1, na.value="grey", discrete = T) +
+  #theme_minimal() +
+  theme_minimal(base_size = 20) +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size=22)) + 
+  labs(title = "",
+         x = "Last Ethnoracial Group",
+      y = "First Ethnoracial Group") + 
+  theme()
+
+ggsave(plot = transition_matrix, filename = here("figures/transition_matrix_all.png"), width = 11, height = 11)
+
+## transition matrix domestic-born — for analysis in appendix 
+
+transition_matrix_native <- numident_sample %>%
+  filter(bpl < 15000) %>% ## restrict to domestic-born 
+  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
+  group_by(race_first_string, race_last_string) %>%
+  summarize(n = n(), .groups = 'drop') %>% 
+  mutate(freq = n / sum(n)) %>% 
+  mutate(freq_categorical =
+             cut(freq,
+                 c(0, 0.005, .01, .05, .1, .8, .9, 1), 
+                 labels = c("Low",
+                              " ", 
+                             "   ",
+                             "     ",
+                              "       ",
+                             "          ",
+                             "High"),
+                 include.lowest = FALSE)) %>% 
+  mutate(freq_label = paste0(round(100*freq,1), "%")) %>% 
+  ggplot(aes(x = race_last_string, y = race_first_string, fill = freq_categorical)) + 
+    geom_tile() +
+  geom_text(aes(color = freq < 0.5, label = freq_label), size= 8) +
+scale_color_manual(guide = FALSE, values = c("black", "white")) +
+    #facet_grid(ego_sex ~ alter_sex) +
+    coord_equal()  + 
+    viridis::scale_fill_viridis(name=str_wrap("Frequency", width=10), alpha = 1, na.value="grey", discrete = T) +
+  #theme_minimal() +
+  theme_minimal(base_size = 20) +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5),
+        axis.title = element_text(size = 15),
+        plot.title = element_text(size=22)) + 
+  labs(title = "",
+         x = "Last Ethnoracial Group",
+      y = "First Ethnoracial Group") + 
+  theme()
+
+## save transition matrix 
+ggsave(plot = transition_matrix_native, filename = here("figures/transition_matrix_native.png"), width = 11, height = 11)
+```
+
+## Age-specific analysis 
+
+```{r}
+## age-specific analysis 
+numident_sample <- numident_sample %>% 
+  mutate(years_apart_categories = case_when(
+    year_cycle_last - year_cycle_first < 5 ~ 0,
+    year_cycle_last - year_cycle_first >= 5 ~ 1
+  )) %>% 
+  mutate(age_at_last_app = year_cycle_last - byear)
+
+## calculate totals by sample 
+totals <- numident_sample %>% 
+  group_by(race_first, age_at_last_app) %>% 
+  tally() %>% 
+  rename(population = n)
+
+switchers <- numident_sample %>% 
+  group_by(race_first, age_at_last_app) %>% 
+  filter(race_first != race_last) %>% 
+  tally() %>% 
+  rename(switched_race = n)
+
+change_by_group <- totals %>% 
+  inner_join(switchers) %>% 
+  mutate(no_race_change = (population-switched_race)/(population))
+
+change_by_age <- change_by_group %>% 
+  filter(age_at_last_app > 20 & age_at_last_app < 85) %>% 
+  mutate(category = case_when(
+    race_first == 4 ~ "Asian",
+    race_first == 1 ~ "White",
+    race_first == 2 ~ "Black",
+    race_first == 5 ~ "Hispanic",
+    race_first == 6 ~ "American Indian",
+    TRUE ~ "other")) %>% 
+  filter(category != "other") %>% 
+  mutate(label = if_else(age_at_last_app == max(age_at_last_app), as.character(category), NA_character_)) %>%
+ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = category))+ 
+  geom_line(size = 1.5) +
+  theme_minimal(base_size = 25) +
+  theme(legend.position="bottom") +
+  labs(title = "",
+       x = "Age", 
+       y = "Stayed in Category") + 
+  geom_label_repel(aes(label = label),
+                  nudge_x = 5,
+                  na.rm = TRUE, size = 5, 
+                  xlim = c(60, 85)) + 
+  scale_y_continuous(limits = c(0.5, 1), labels = scales::percent) + 
+  scale_color_viridis_d(guide = FALSE, end = 1)
+
+ggsave(plot = change_by_age, filename = here("illustrations/race_change_by_age.png"), height = 10, width = 12)
+```
+
+
+
