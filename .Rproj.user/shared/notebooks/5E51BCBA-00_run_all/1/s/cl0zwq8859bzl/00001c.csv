@@ -70,7 +70,8 @@
 "2","="
 "2","|
 "
-"1","Finished with 01_ethnoracial_fluidity_rates.Rmd, time:: 9.386 sec elapsed
+"2","`summarise()` has grouped output by 'race_first_string'. You can override using the `.groups` argument."
+"1","Finished with 01_ethnoracial_fluidity_rates.Rmd, time:: 9.586 sec elapsed
 "
 "1","================================
 "
@@ -82,7 +83,7 @@
 "1"," "
 "1","
 "
-"1","Finished with 02_predictors_of_ethnoracial_shift.Rmd, time:: 5.158 sec elapsed
+"1","Finished with 02_predictors_of_ethnoracial_shift.Rmd, time:: 5.974 sec elapsed
 "
 "1","================================
 "
@@ -94,7 +95,7 @@
 "1"," "
 "1","
 "
-"1","Finished with 03_appendix_1940census.Rmd, time:: 2.52 sec elapsed
+"1","Finished with 03_appendix_1940census.Rmd, time:: 2.516 sec elapsed
 "
 "1","================================
 "

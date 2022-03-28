@@ -47,4 +47,4 @@
 "0","  scale_y_continuous(limits = c(0.5, 1), labels = scales::percent) + "
 "0","  scale_color_viridis_d(guide = FALSE, end = 1)"
 "0",""
-"0","ggsave(plot = change_by_age, filename = here(""illustrations/race_change_by_age.png""), height = 10, width = 12)"
+"0","ggsave(plot = change_by_age, filename = here(""figures/race_change_by_age.png""), height = 10, width = 12)"
