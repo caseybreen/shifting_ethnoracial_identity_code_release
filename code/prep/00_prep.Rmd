@@ -76,7 +76,7 @@ Add matched census files
 
 ```{r}
 ## CenSoc-Numident ABE
-matched_census_bunmd <- fread("/home/ipums/ugury-ipums/censoc-abe-implementation/data/matched-census-bunmd/matched_census_bunmd.csv") %>% 
+matched_census_bunmd <- fread("/home/ipums/wontak.joo-ipums/project/abe/data/matched-census-bunmd/matched_census_bunmd.csv") %>% 
   mutate(link_abe_exact_conservative = case_when(
     uniquestub_match2 == 1 & uniquestub_file2 ~ 1,
      TRUE ~ 0))
@@ -117,7 +117,7 @@ analysis_dataset_with_covariates <- analysis_dataset_with_covariates %>%
 ))
 
 ## write out files 
-fwrite(analysis_dataset_with_covariates, "../data/analysis_dataset_with_covariates.csv")
+fwrite(analysis_dataset_with_covariates, "../../data/numident_dataset_with_covariates.csv")
 
-fwrite(analysis_dataset, "../data/analysis_dataset.csv")
+fwrite(analysis_dataset, "../../data/numident_dataset.csv")
 ```

@@ -33,7 +33,7 @@ education_data <- numident_with_covariates %>%
   filter(AGE >= 18) %>% 
   #filter(byear < 1925) %>% 
   #filter(SEX == 1) %>% 
- # filter(link_abe_exact_conservative == 1) %>% 
+ filter(link_abe_exact_conservative == 1) %>% 
   mutate(race = case_when(
     race_first == 1  ~ "White",
     race_first == 2  ~ "Black",

@@ -14,6 +14,8 @@ library(ggsci)
 library(scales)
 library(ggrepel)
 library(here)
+library(kableExtra)
+library(janitor)
 ```
 
 ## recode and restrict to sample 
@@ -126,6 +128,55 @@ scale_color_manual(guide = FALSE, values = c("black", "white")) +
 ## save transition matrix 
 ggsave(plot = transition_matrix_native, filename = here("figures/transition_matrix_native.png"), width = 11, height = 11)
 ```
+
+# numident sample native 
+
+```{r}
+## make latex table 
+table <- numident_sample %>%
+  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
+  tabyl(race_first_string, race_last_string) %>%
+  adorn_totals(c("row", "col")) %>%
+  adorn_percentages("row") %>% 
+  adorn_pct_formatting(rounding = "half up", digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("combined") %>% 
+  as.data.frame() %>% 
+  filter(`race_first_string/race_last_string` != "Total") %>% 
+  select(-Total) %>% 
+  rename(`Race First` = `race_first_string/race_last_string`)
+
+table %>% 
+  kable(format = "latex",booktabs = T) %>%
+  add_header_above(c("", "Race Last" = 5)) %>%
+  kable_styling(font_size = 9)
+```
+
+## numident sample native 
+
+```{r}
+## make latex table 
+table <- numident_sample %>%
+    filter(bpl < 15000) %>% ## restrict to domestic-born 
+  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
+  tabyl(race_first_string, race_last_string) %>%
+  adorn_totals(c("row", "col")) %>%
+  adorn_percentages("row") %>% 
+  adorn_pct_formatting(rounding = "half up", digits = 1) %>%
+  adorn_ns() %>%
+  adorn_title("combined") %>% 
+  as.data.frame() %>% 
+  filter(`race_first_string/race_last_string` != "Total") %>% 
+  select(-Total) %>% 
+  rename(`Race First` = `race_first_string/race_last_string`)
+
+table %>% 
+  kable(format = "latex",booktabs = T) %>%
+  add_header_above(c("", "Race Last" = 5)) %>%
+  kable_styling(font_size = 9)
+```
+
+
 
 ## Age-specific analysis 
 
