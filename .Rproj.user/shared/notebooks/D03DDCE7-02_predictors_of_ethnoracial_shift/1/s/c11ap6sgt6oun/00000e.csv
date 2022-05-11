@@ -1,3 +1,4 @@
+"0","## read in data "
 "0","numident_with_covariates <- fread(here(""data/numident_dataset_with_covariates.csv"")) %>% "
 "0","  filter(year_cycle_first > 1983) %>% "
 "0","  filter(byear %in% c(1901:1927)) %>% "

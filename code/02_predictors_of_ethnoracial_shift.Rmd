@@ -13,10 +13,12 @@ library(broom)
 library(ggsci)
 library(cowplot)
 library(here)
+library(cowplot)
 ```
 
 
 ```{r}
+## read in data 
 numident_with_covariates <- fread(here("data/numident_dataset_with_covariates.csv")) %>% 
   filter(year_cycle_first > 1983) %>% 
   filter(byear %in% c(1901:1927)) %>% 
@@ -79,7 +81,7 @@ educ_plot <- education_data %>%
        y = "Educational Attainment (Years)") + 
   theme(legend.position = "bottom", 
         legend.title=element_blank()) + 
-  scale_color_lancet() +
+  scale_color_grey(end = .6) + 
 ylim(6, 12)
 ```
 
@@ -131,7 +133,7 @@ income_plot <- income_data %>%
        x = "Initial Ethnoracial Category", 
        y = "Wage and Salary Income") + 
   theme(legend.position = "none") + 
-  scale_color_lancet()
+  scale_color_grey(end = .6)
 
 legend <- get_legend(
   # create some space to the left of the legend

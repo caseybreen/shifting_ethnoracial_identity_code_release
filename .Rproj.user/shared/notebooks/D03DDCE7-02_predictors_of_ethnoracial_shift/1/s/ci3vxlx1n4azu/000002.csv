@@ -1,5 +1,5 @@
 "0","## create dummy variables"
-"0","matched_data <- matched_data %>% "
+"0","numident_with_covariates <- numident_with_covariates %>% "
 "0","  mutate(change_to_white = case_when("
 "0","    race_first != 1 & race_last == 1 ~ 1,"
 "0","    TRUE ~ 0"

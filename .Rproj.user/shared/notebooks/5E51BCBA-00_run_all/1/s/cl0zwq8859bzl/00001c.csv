@@ -110,7 +110,7 @@ Attaching package: ‘janitor’
 "2","|
 "
 "2","`summarise()` has grouped output by 'race_first_string'. You can override using the `.groups` argument."
-"1","Finished with 01_ethnoracial_fluidity_rates.Rmd, time:: 38.233 sec elapsed
+"1","Finished with 01_ethnoracial_fluidity_rates.Rmd, time:: 37.225 sec elapsed
 "
 "1","================================
 "
@@ -122,7 +122,7 @@ Attaching package: ‘janitor’
 "1"," "
 "1","
 "
-"1","Finished with 02_predictors_of_ethnoracial_shift.Rmd, time:: 15.206 sec elapsed
+"1","Finished with 02_predictors_of_ethnoracial_shift.Rmd, time:: 14.502 sec elapsed
 "
 "1","================================
 "
@@ -134,7 +134,7 @@ Attaching package: ‘janitor’
 "1"," "
 "1","
 "
-"1","Finished with 03_appendix_1940census.Rmd, time:: 10.496 sec elapsed
+"1","Finished with 03_appendix_1940census.Rmd, time:: 9.681 sec elapsed
 "
 "1","================================
 "

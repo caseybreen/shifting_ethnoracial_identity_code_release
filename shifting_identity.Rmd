@@ -48,45 +48,47 @@ numident <- fread("/censoc/data/censoc_linked_with_census/1940_v2/censoc_numiden
 numident <- numident %>% 
   left_join(ss5_applications_post_1980 %>% select(ssn, number_of_distinct_apps))
 ```
+
+
 ```{r}
 numident <- numident %>% 
   mutate(multiple_apps = case_when(
-    number_of_distinct_apps == 1 | is.na(number_of_distinct_apps) ~ "no",
-    TRUE ~ "yes"
+    number_of_distinct_apps == 1 ~ "1",
+    is.na(number_of_distinct_apps) ~ "0",
+    TRUE ~ "2+"
   ))
 
 numident <- numident %>% 
   censocdev::recode_education(educ_var = EDUC)
 
-
 numident_select <- numident %>% 
   filter(byear %in% 1901:1927) %>% 
   filter(INCWAGE %in% 1:5001) %>% 
-  filter(AGE >= 18)
-
-  group_by(multiple_apps) %>% 
-  summarize(median(INCWAGE, na.rm = T), n())
-
-model <- lm(educ_yrs ~ multiple_apps + as.factor(byear), data = numident)
-```
-
-```{r}
-numident %>% 
-  filter(byear %in% 1901:1927) %>% 
   filter(AGE >= 18) %>% 
+  mutate(race_white = case_when(
+    RACE == 100 ~ 1,
+    TRUE ~ 0
+  ))
+
+table <- numident_select %>% 
+  # filter(bpl < 15000) %>% 
   group_by(multiple_apps) %>% 
-  summarize(mean(educ_yrs, na.rm = T), mean(dyear))
+  summarize(inc_wage = mean(INCWAGE, na.rm = T),
+            n = n(),
+            educ_yrs = mean(educ_yrs, na.rm = T),
+            white = mean(race_white),
+            sex = mean(sex))
 
+gt_table <- gt::gt(table %>% 
+         select(multiple_apps, n, inc_wage, educ_yrs))
 
-
+gt::as_latex(gt_table)
 ```
 
-
 ```{r}
-fix_results <- fixest::feols(educ_yrs ~ multiple_apps | byear, data = numident_select)
+fix_results <- fixest::feols(race_white ~ multiple_apps | sex + byear, data = numident_select)
 
-fix_results_incwage <- fixest::feols(INCWAGE ~ multiple_apps | byear, data = numident_select)
-
+fix_results_incwage <- fixest::feols(INCWAGE ~ multiple_apps | sex + byear, data = numident_select)
 ```
 
 

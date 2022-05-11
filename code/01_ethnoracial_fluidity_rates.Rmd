@@ -16,6 +16,7 @@ library(ggrepel)
 library(here)
 library(kableExtra)
 library(janitor)
+library(cowplot)
 ```
 
 ## recode and restrict to sample 
@@ -177,7 +178,6 @@ table %>%
 ```
 
 
-
 ## Age-specific analysis 
 
 ```{r}
@@ -216,10 +216,11 @@ change_by_age <- change_by_group %>%
     TRUE ~ "other")) %>% 
   filter(category != "other") %>% 
   mutate(label = if_else(age_at_last_app == max(age_at_last_app), as.character(category), NA_character_)) %>%
-ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = category))+ 
+ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = category, linetype = category))+ 
   geom_line(size = 1.5) +
-  theme_minimal(base_size = 25) +
-  theme(legend.position="bottom") +
+  theme_cowplot(20) +
+  theme(legend.position="bottom",
+        legend.key.width = unit(1.5, 'cm')) +
   labs(title = "",
        x = "Age", 
        y = "Stayed in Category") + 
@@ -228,9 +229,9 @@ ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = ca
                   na.rm = TRUE, size = 5, 
                   xlim = c(60, 85)) + 
   scale_y_continuous(limits = c(0.5, 1), labels = scales::percent) + 
-  scale_color_viridis_d(guide = FALSE, end = 1)
+  scale_color_grey(guide = FALSE, end = .5)
 
-ggsave(plot = change_by_age, filename = here("figures/race_change_by_age.png"), height = 10, width = 12)
+ggsave(plot = change_by_age, filename = here("figures/race_change_by_age.png"), height = 8, width = 12)
 ```
 
 
