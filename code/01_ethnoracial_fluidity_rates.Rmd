@@ -220,7 +220,8 @@ ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = ca
   geom_line(size = 1.5) +
   theme_cowplot(20) +
   theme(legend.position="bottom",
-        legend.key.width = unit(1.5, 'cm')) +
+        legend.key.width = unit(2.3, 'cm'),
+        legend.title=element_blank()) +
   labs(title = "",
        x = "Age", 
        y = "Stayed in Category") + 
@@ -231,7 +232,53 @@ ggplot(aes(x = age_at_last_app, y = no_race_change, group = category, color = ca
   scale_y_continuous(limits = c(0.5, 1), labels = scales::percent) + 
   scale_color_grey(guide = FALSE, end = .5)
 
-ggsave(plot = change_by_age, filename = here("figures/race_change_by_age.png"), height = 8, width = 12)
+
+## calculate totals by byear  
+totals <- numident_sample %>% 
+  group_by(race_first, byear) %>% 
+  tally() %>% 
+  rename(population = n)
+
+switchers <- numident_sample %>% 
+  group_by(race_first, byear) %>% 
+  filter(race_first != race_last) %>% 
+  tally() %>% 
+  rename(switched_race = n)
+
+change_by_group <- totals %>% 
+  inner_join(switchers) %>% 
+  mutate(no_race_change = (population-switched_race)/(population))
+
+change_by_cohort <- change_by_group %>% 
+  # filter(age_at_last_app > 20 & age_at_last_app < 85) %>% 
+  mutate(category = case_when(
+    race_first == 4 ~ "Asian",
+    race_first == 1 ~ "White",
+    race_first == 2 ~ "Black",
+    race_first == 5 ~ "Hispanic",
+    race_first == 6 ~ "American Indian",
+    TRUE ~ "other")) %>% 
+  filter(category != "other") %>% 
+  mutate(label = if_else(byear == max(byear), as.character(category), NA_character_)) %>%
+ggplot(aes(x = byear, y = no_race_change, group = category, color = category, linetype = category))+ 
+  geom_line(size = 1.5) +
+  theme_cowplot(20) +
+  theme(legend.position="bottom",
+        legend.key.width = unit(2.3, 'cm'),
+        legend.title=element_blank()) +
+  labs(title = "",
+       x = "Birth Year", 
+       y = "Stayed in Category") + 
+  geom_label_repel(aes(label = label),
+                  nudge_x = 5,
+                  na.rm = TRUE, size = 5, 
+                  xlim = c(1901, 1927)) + 
+  scale_y_continuous(limits = c(0.5, 1), labels = scales::percent) + 
+  scale_color_grey(guide = FALSE, end = .5)
+
+change_commbined_plot <- plot_grid(change_by_age, change_by_cohort, nrow = 2, labels = "auto")
+
+ggsave(plot = change_commbined_plot, filename = here("figures/race_change_combined.png"), height = 16, width = 13)
 ```
 
 

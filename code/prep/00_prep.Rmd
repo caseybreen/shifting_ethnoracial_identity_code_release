@@ -40,19 +40,18 @@ post_1980_multiple_apps <- ss5_applications_post_1980 %>%
   filter(number_of_distinct_apps >= 2)
 
 ## Identify SSN and first and last app with cycle date
-  
 race_first <- post_1980_multiple_apps %>%
   mutate(cycle = year_cycle + (month_cycle/12)) %>% 
   group_by(ssn) %>%
   filter(cycle == min(cycle)) %>% 
-  select(year_cycle_first = year_cycle, race_first = race, ssn) %>% 
+  select(year_cycle_first = year_cycle, race_first = race, ssn, form_signer_first = form_signer) %>% 
   ungroup()
 
 race_last <- post_1980_multiple_apps %>%
   mutate(cycle = year_cycle + (month_cycle/12)) %>% 
   group_by(ssn) %>%
   filter(cycle == max(cycle)) %>% 
-  select(year_cycle_last = year_cycle, race_last = race, ssn) %>% 
+  select(year_cycle_last = year_cycle, race_last = race, ssn, form_signer_last = form_signer) %>% 
   ungroup()
 
 individuals_2plus_apps <- race_first %>% 
@@ -76,7 +75,7 @@ Add matched census files
 
 ```{r}
 ## CenSoc-Numident ABE
-matched_census_bunmd <- fread("/home/ipums/wontak.joo-ipums/project/abe/data/matched-census-bunmd/matched_census_bunmd.csv") %>% 
+matched_census_bunmd <- fread("/home/ipums/wontak.joo-ipums/project/abe/data/matched-1940-census-bunmd/matched_census_bunmd.csv") %>% 
   mutate(link_abe_exact_conservative = case_when(
     uniquestub_match2 == 1 & uniquestub_file2 ~ 1,
      TRUE ~ 0))
