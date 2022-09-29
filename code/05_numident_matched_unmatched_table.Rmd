@@ -1,0 +1,128 @@
+---
+title: "R Notebook"
+author: "Casey Breen" 
+---
+
+Summary: Create table comparing numident characteristics of people who submitted 0, 1, or 2 applications. 
+
+```{r}
+## library packages 
+library(data.table)
+library(tidyverse)
+library(ggsci)
+library(scales)
+library(ggrepel)
+library(here)
+library(kableExtra)
+library(janitor)
+library(cowplot)
+library(gt)
+```
+
+```{r}
+## numident with covariates (linked sample)
+numident_with_covariates <- fread(here("data/numident_dataset_with_covariates.csv")) %>% 
+  filter(year_cycle_first > 1983) %>% 
+  filter(byear %in% c(1901:1927)) %>% 
+  filter(race_last_cyear %in% c(1984:2007)) %>% 
+  mutate(time_between_apps = year_cycle_last - year_cycle_first)
+
+## read in numident sample and recode 
+numident_sample  <- fread(here("data/numident_dataset.csv")) %>% 
+  filter(year_cycle_first > 1983) %>% 
+  filter(byear %in% c(1901:1927)) %>% 
+  filter(race_last_cyear %in% c(1984:2007)) %>% 
+  mutate(race_first_string = case_when(
+    race_first == 1  ~ "White",
+    race_first == 2  ~ "Black",
+    race_first == 4  ~ "Asian",
+    race_first == 5  ~ "Hispanic",
+    race_first == 6  ~ "American Indian")) %>% 
+  mutate(race_last_string = case_when(
+    race_last == 1  ~ "White",
+    race_last == 2  ~ "Black",
+    race_last == 4  ~ "Asian",
+    race_last == 5  ~ "Hispanic",
+    race_last == 6  ~ "American Indian")) %>% 
+  filter(!is.na(race_first_string) & !is.na(race_last_string))
+
+## read in numident sample (full sample)
+numident_sample <- numident_sample %>% 
+  mutate(matched = case_when(
+    ssn %in% numident_with_covariates$ssn ~ 1,
+    TRUE ~ 0
+  )) %>% 
+  filter(byear %in% 1901:1927) %>% 
+  mutate(byear_cat = case_when(
+    byear %in% 1901:1909 ~ "1901-1909",
+    byear %in% 1910:1919 ~ "1910-1919",
+    byear %in% 1920:1927 ~ "1920-1927"
+  )) %>% 
+  mutate(sex = case_when(
+    sex == 1 ~ "male",
+    sex == 2 ~ "female"
+  ))
+
+## combine datasets 
+numident_sample_linked_1 <- numident_sample %>% 
+  filter(matched == 1) %>% 
+  select(ssn, race_first_string, race_last_string, sex, byear_cat) %>%
+  pivot_longer(-ssn) %>% 
+  group_by(name, value) %>%
+  tally() %>%            
+  mutate(prop = round(100*prop.table(n), 1)) %>% 
+  rename(n_gen_matched = n, prop_gen_matched = prop)
+
+numident_sample_linked_0 <- numident_sample %>% 
+  filter(matched == 0) %>% 
+  select(ssn, race_first_string, race_last_string, sex, byear_cat) %>%
+  pivot_longer(-ssn) %>% 
+  group_by(name, value) %>%
+  tally() %>%            
+  mutate(prop = round(100*prop.table(n), 1)) %>% 
+  rename(n_gen_unmatched = n, prop_gen_unmatched = prop)
+```
+
+
+```{r}
+## create table 
+combined_characteristics <- numident_sample_linked_1 %>% 
+  inner_join(numident_sample_linked_0, by = c("name", "value")) %>% 
+  mutate(name = as.factor(name), value = as.factor(value)) %>% 
+  # mutate(name = factor(name, levels = c("educ_level", "race_recode", "marital_status", "homeown", "sei_recode", "rural", "region_string", "Gender"))) %>% 
+  arrange(name, value)
+
+## create table 
+## will have to do some manual clean-up but this gets us 80% of the way
+table_comparison <- gt(data = combined_characteristics) %>% 
+  tab_spanner(
+    label = "Matched",
+    columns = vars(
+      n_gen_matched, prop_gen_matched)) %>% 
+  tab_spanner(
+    label = "Unmatched",
+    columns = vars(
+      n_gen_unmatched, prop_gen_unmatched)) %>% 
+  # tab_spanner(
+  #   label = "Conservative",
+  #   columns = vars(
+  #     n_gen_conservative, prop_conservative)) %>% 
+  cols_label(
+    "n_gen_matched" = "No.",
+    "prop_gen_matched" = "%",
+    "n_gen_unmatched" = "No.",
+    "prop_gen_unmatched" = "%",
+    value = ""
+  ) %>% 
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")),
+    locations = cells_row_groups()
+  ) %>% 
+  opt_row_striping(row_striping = T) %>% 
+  cols_align("left") 
+
+
+table_comparison %>%
+  gtsave("tab6_numident_matched_v_unmatched.tex", path = here("figures/")) 
+```

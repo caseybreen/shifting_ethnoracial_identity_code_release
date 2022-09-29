@@ -1,0 +1,203 @@
+---
+title: "Create Representativity Table"
+---
+
+Summary: This code creates a table comparing sociodemographic characteristics for individuals who submitted 0, 1, or 2+ Social Security Applications after 1983 (who were successfully linked to the 1940 census). 
+
+```{r}
+## library packages 
+library(data.table)
+library(tidyverse)
+library(gt)
+library(gtable)
+library(here)
+```
+
+
+```{r}
+## read in all applications 
+applications <- fread("/censoc/data/numident/2_numident_files_cleaned/apps_cleaned.csv")
+
+## matched census bunmd 
+matched_census_bunmd <- fread("/home/ipums/wontak.joo-ipums/project/abe/data/matched-1940-census-bunmd/matched_census_bunmd.csv") %>% 
+  mutate(link_abe_exact_conservative = case_when(
+    uniquestub_match2 == 1 & uniquestub_file2 ~ 1,
+     TRUE ~ 0))
+
+## Set "Missing"" to NA 
+applications[race == 0, race := NA]
+applications[race == 9, race := NA]
+
+## Removing missing races and only look at post-1980 applications
+ss5_applications_post_1980 <- applications %>% 
+  filter(!is.na(race)) %>% 
+  filter(year_cycle >= 1984)
+
+## Identify individuals with more than one application
+setDT(ss5_applications_post_1980)
+ss5_applications_post_1980[, number_of_distinct_apps:=.N, by = ssn]
+```
+
+
+```{r}
+ss5_applications_post_1980_distinct <- ss5_applications_post_1980 %>% 
+  # filter(number_of_distinct_apps >= 2) %>% 
+  filter(race != 3) %>% 
+  select(ssn, number_of_distinct_apps) %>% 
+  distinct()
+```
+
+```{r}
+merged_sample <- matched_census_bunmd %>%
+  left_join(ss5_applications_post_1980_distinct, by = c("id_B" = "ssn"))
+
+merged_sample_restricted <- merged_sample %>%
+ # filter(year_cycle > 1983) %>% 
+  filter(byear_B %in% c(1901:1927)) %>% 
+ # filter(race_last_cyear_B %in% c(1984:2007)) %>% 
+  select(histid = id_A, number_of_distinct_apps) %>% 
+  mutate(number_of_distinct_apps = case_when(
+    number_of_distinct_apps >= 2 ~ "2+",
+    number_of_distinct_apps == 1 ~ "1",
+    TRUE ~ "0"
+  ))
+```
+
+
+```{r}
+## read in census
+census_1940 <- fread("/ipums-repo2019/1940/TSV/P.tsv", select = c("HISTID", "INCWAGE", "EDUC", "OCCSCORE", "AGE", "RACE", "RELATE", "MARST", "SEI", "SEX"))
+
+## add covariates
+merged_sample_restricted_census <- census_1940 %>% 
+  inner_join(merged_sample_restricted, by = c("HISTID" = "histid")) 
+
+
+merged_sample_restricted_census <- merged_sample_restricted_census %>% 
+  janitor::clean_names() %>% 
+    mutate(byear_cat = 1940 - age) %>% 
+  mutate(
+    hs = case_when(
+      educ >= 60 & educ < 998 ~ 1,
+      TRUE ~ 0
+    ), 
+    black = case_when( 
+      race == 200 ~ 1,
+      TRUE ~ 0
+    ), white = case_when(
+      race == 100 ~ 1,
+      TRUE ~ 0
+    ),
+    # homeown = case_when(
+    #   ownershp == 10 ~ 1, 
+    #   TRUE ~ 0
+    # ),
+    p_hh_head = case_when(
+      relate == 101 ~ 1, 
+      TRUE ~ 0
+    ),
+    p_hh_head = case_when(
+      relate == 101 ~ 1, 
+      TRUE ~ 0
+    ),
+    educ_level = case_when(
+      educ <= 50 ~ "Less than High School",
+      educ %in% 60:90 ~ "High School or some college",
+      educ %in% 100:150 ~ "Bachelors Degree or higher"), 
+    sei_recode = case_when(
+      sei %in% 1:9 ~ "sei_1_9",
+      sei %in% 10:14 ~ "sei_10_14",
+      sei %in% 15:25 ~ "sei_15_25",
+      sei >= 26 ~      "sei_26+"
+    ),
+    marital_status = case_when(
+      marst %in% 1:2 ~ "married",
+      TRUE ~ "not married" ),
+    race_recode = case_when(
+      race == 100 ~ "White",
+      race == 200 ~ "Black",
+      TRUE ~ "Other"
+    )) %>% 
+  mutate(sex = case_when(
+    sex == 1 ~ "Male",
+    sex == 2 ~ "Female"
+  )) %>% 
+  mutate(byear_cat = case_when(
+    byear_cat %in% 1900:1909 ~ "1900-1909",
+    byear_cat %in% 1910:1919 ~ "1910-1919",
+    byear_cat %in% 1920:1928 ~ "1920-1928"
+  ))
+
+sample_char_0 <- merged_sample_restricted_census %>% 
+  filter(number_of_distinct_apps == "0") %>% 
+  select(histid, byear_cat, educ_level, sei_recode, marital_status, sex) %>%
+  pivot_longer(-histid) %>% 
+  group_by(name, value) %>%
+  tally() %>%            
+  mutate(prop = round(100*prop.table(n), 1)) %>% 
+  rename(n_gen_0 = n, prop_gen_0 = prop)
+
+sample_char_1 <- merged_sample_restricted_census %>% 
+  filter(number_of_distinct_apps == "1") %>% 
+  select(histid, educ_level, byear_cat, sei_recode, marital_status, sex) %>%
+  pivot_longer(-histid) %>% 
+  group_by(name, value) %>%
+  tally() %>%            
+  mutate(prop = round(100*prop.table(n), 1)) %>% 
+  rename(n_gen_1 = n, prop_gen_1 = prop)
+  
+sample_char_2 <- merged_sample_restricted_census %>% 
+  filter(number_of_distinct_apps == "2+") %>% 
+  select(histid, educ_level, byear_cat, sei_recode, marital_status, sex) %>%
+  pivot_longer(-histid) %>% 
+  group_by(name, value) %>%
+  tally() %>%            
+  mutate(prop = round(100*prop.table(n), 1)) %>% 
+  rename(n_gen_2 = n, prop_gen_2 = prop)
+
+combined_characteristics <- sample_char_0 %>% 
+  inner_join(sample_char_1, by = c("name", "value")) %>% 
+  inner_join(sample_char_2, by = c("name", "value")) %>% 
+  mutate(name = as.factor(name), value = as.factor(value)) %>% 
+  mutate(name = factor(name, levels = c("educ_level", "race_recode", "marital_status", "sei_recode"))) %>% 
+  arrange(name, value)
+
+## create table 
+## will have to do some manual clean-up but this gets us 80% of the way
+table_s3 <- gt(data = combined_characteristics) %>% 
+  tab_spanner(
+    label = "0 apps",
+    columns = vars(
+      n_gen_0, prop_gen_0)) %>% 
+  tab_spanner(
+    label = "1 app",
+    columns = vars(
+      n_gen_1, prop_gen_1)) %>% 
+  tab_spanner(
+     label = "2 apps",
+    columns = vars(
+       n_gen_2, prop_gen_2)) %>% 
+  cols_label(
+    "n_gen_0" = "No.",
+    "prop_gen_0" = "%",
+    "n_gen_1" = "No.",
+    "prop_gen_1" = "%",
+     "n_gen_2"  = "No.",
+     "prop_gen_2" = "%",
+    value = ""
+  ) %>% 
+  # row_group_order(
+  #     groups = c("Gender", "Age", "Education", "Race")
+  #   ) %>% 
+  tab_style(
+    style = list(
+      cell_text(weight = "bold")),
+    locations = cells_row_groups()
+  ) %>% 
+  opt_row_striping(row_striping = T) %>% 
+  cols_align("left") 
+
+table_s3 %>%
+  gtsave("tab5_numident_characteristics_apps.tex", path = here("figures/")) 
+```
+

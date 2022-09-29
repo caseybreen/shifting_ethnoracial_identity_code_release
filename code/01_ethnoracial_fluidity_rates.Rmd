@@ -48,93 +48,11 @@ numident_sample %>%
   summarize(changed_ethnoracial_identity = mean(race_first != race_last))
 ```
 
-## construct transisiton matrices 
-
-```{r}
-## Construct a transition matrix 
-transition_matrix <- numident_sample %>%
-  # filter(bpl < 15000) %>% 
-  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
-  group_by(race_first_string, race_last_string) %>%
-  summarize(n = n()) %>% 
-  mutate(freq = n / sum(n)) %>% 
-  mutate(freq_categorical =
-             cut(freq,
-                 c(0, 0.005, .01, .05, .1, .8, .9, 1), 
-                 labels = c("Low",
-                              " ", 
-                             "   ",
-                             "     ",
-                             "       ",
-                             "          ",
-                             "High"),
-                 include.lowest = FALSE)) %>% 
-  mutate(freq_label = paste0(round(100*freq,1), "%")) %>% 
-  ggplot(aes(x = race_last_string, y = race_first_string, fill = freq_categorical)) + 
-    geom_tile() +
-  geom_text(aes(color = freq < 0.5, label = freq_label), size= 8) +
-scale_color_manual(guide = FALSE, values = c("black", "white")) +
-    #facet_grid(ego_sex ~ alter_sex) +
-    coord_equal()  + 
-    viridis::scale_fill_viridis(name=str_wrap("Frequency", width=10), alpha = 1, na.value="grey", discrete = T) +
-  #theme_minimal() +
-  theme_minimal(base_size = 20) +
-  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5),
-        axis.title = element_text(size = 15),
-        plot.title = element_text(size=22)) + 
-  labs(title = "",
-         x = "Last Ethnoracial Group",
-      y = "First Ethnoracial Group") + 
-  theme()
-
-ggsave(plot = transition_matrix, filename = here("figures/transition_matrix_all.png"), width = 11, height = 11)
-
-## transition matrix domestic-born — for analysis in appendix 
-
-transition_matrix_native <- numident_sample %>%
-  filter(bpl < 15000) %>% ## restrict to domestic-born 
-  filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
-  group_by(race_first_string, race_last_string) %>%
-  summarize(n = n()) %>% 
-  mutate(freq = n / sum(n)) %>% 
-  mutate(freq_categorical =
-             cut(freq,
-                 c(0, 0.005, .01, .05, .1, .8, .9, 1), 
-                 labels = c("Low",
-                              " ", 
-                             "   ",
-                             "     ",
-                              "       ",
-                             "          ",
-                             "High"),
-                 include.lowest = FALSE)) %>% 
-  mutate(freq_label = paste0(round(100*freq,1), "%")) %>% 
-  ggplot(aes(x = race_last_string, y = race_first_string, fill = freq_categorical)) + 
-    geom_tile() +
-  geom_text(aes(color = freq < 0.5, label = freq_label), size= 8) +
-scale_color_manual(guide = FALSE, values = c("black", "white")) +
-    #facet_grid(ego_sex ~ alter_sex) +
-    coord_equal()  + 
-    viridis::scale_fill_viridis(name=str_wrap("Frequency", width=10), alpha = 1, na.value="grey", discrete = T) +
-  #theme_minimal() +
-  theme_minimal(base_size = 20) +
-  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=.5),
-        axis.title = element_text(size = 15),
-        plot.title = element_text(size=22)) + 
-  labs(title = "",
-         x = "Last Ethnoracial Group",
-      y = "First Ethnoracial Group") + 
-  theme()
-
-## save transition matrix 
-ggsave(plot = transition_matrix_native, filename = here("figures/transition_matrix_native.png"), width = 11, height = 11)
-```
-
 # numident sample native 
 
 ```{r}
 ## make latex table 
-table <- numident_sample %>%
+numident_sample_full <- numident_sample %>%
   filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
   tabyl(race_first_string, race_last_string) %>%
   adorn_totals(c("row", "col")) %>%
@@ -147,17 +65,18 @@ table <- numident_sample %>%
   select(-Total) %>% 
   rename(`Race First` = `race_first_string/race_last_string`)
 
-table %>% 
+numident_sample_full %>% 
   kable(format = "latex",booktabs = T) %>%
   add_header_above(c("", "Race Last" = 5)) %>%
-  kable_styling(font_size = 9)
+  kable_styling(font_size = 9) %>% 
+  save_kable("../figures/tab2_numident_sample_full.tex")
 ```
 
 ## numident sample native 
 
 ```{r}
 ## make latex table 
-table <- numident_sample %>%
+numident_sample_native <- numident_sample %>%
     filter(bpl < 15000) %>% ## restrict to domestic-born 
   filter(!is.na(race_first_string) & !is.na(race_last_string)) %>% 
   tabyl(race_first_string, race_last_string) %>%
@@ -171,14 +90,15 @@ table <- numident_sample %>%
   select(-Total) %>% 
   rename(`Race First` = `race_first_string/race_last_string`)
 
-table %>% 
+numident_sample_native %>% 
   kable(format = "latex",booktabs = T) %>%
   add_header_above(c("", "Race Last" = 5)) %>%
-  kable_styling(font_size = 9)
+  kable_styling(font_size = 9) %>% 
+  save_kable("../figures/tab3_numident_sample_native.tex")
 ```
 
 
-## Age-specific analysis 
+## Figure 2 — Age-specific analysis 
 
 ```{r}
 ## age-specific analysis 
@@ -278,8 +198,9 @@ ggplot(aes(x = byear, y = no_race_change, group = category, color = category, li
 
 change_commbined_plot <- plot_grid(change_by_age, change_by_cohort, nrow = 2, labels = "auto")
 
-ggsave(plot = change_commbined_plot, filename = here("figures/race_change_combined.png"), height = 16, width = 13)
+ggsave(plot = change_commbined_plot, filename = here("figures/fig2_race_change_combined.png"), height = 16, width = 13)
 ```
+
 
 
 

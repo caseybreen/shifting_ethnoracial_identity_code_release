@@ -151,7 +151,7 @@ bivariate_correlations <- cowplot::plot_grid(
 bivariate_correlations_plot <- plot_grid(bivariate_correlations, legend, ncol = 1, rel_heights = c(1, .1))
 
 
-ggsave(plot = bivariate_correlations_plot, filename = here("figures/bivariate_correlations.png"), height = 13, width = 7)
+ggsave(plot = bivariate_correlations_plot, filename = here("figures/fig3_bivariate_correlations.png"), height = 13, width = 7)
 ```
 
 ## Logistic Regressions
@@ -292,7 +292,7 @@ odds_ratios <- bind_rows(education_coefficients, income_coefficients) %>%
        x = "Initial Ethnoracial Category"
   )
 
-ggsave(plot = odds_ratios, filename = here("figures/odds_ratio.png"), height = 6, width = 13)
+ggsave(plot = odds_ratios, filename = here("figures/fig4_odds_ratio.png"), height = 6, width = 13)
 ```
 
 

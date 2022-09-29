@@ -29,7 +29,7 @@ applications[race == 9, race := NA]
 ## Removing missing races and only look at post-1980 applications
 ss5_applications_post_1980 <- applications %>% 
   filter(!is.na(race)) %>% 
-  filter(year_cycle >= 1980)
+  filter(year_cycle >= 1984)
 
 ## Identify individuals with more than one application
 setDT(ss5_applications_post_1980)
@@ -119,4 +119,6 @@ analysis_dataset_with_covariates <- analysis_dataset_with_covariates %>%
 fwrite(analysis_dataset_with_covariates, "../../data/numident_dataset_with_covariates.csv")
 
 fwrite(analysis_dataset, "../../data/numident_dataset.csv")
+
+
 ```
